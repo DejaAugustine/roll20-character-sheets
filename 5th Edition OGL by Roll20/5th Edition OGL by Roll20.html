@@ -6328,7 +6328,10 @@
                 vv = "?{Second 1d20}+0d20";
             }
             setAttrs({dicetype_ad: vv});
-        })
+        });
+        
+        force_refresh_spells();
+        
         getSectionIDs("repeating_attack", function(ids){
             for(i = 0; i < ids.length; i++) {
                 updateAttack({
@@ -6362,10 +6365,10 @@
             if(v["repeating_attack_"+attackid+"spellid"] && v["repeating_attack_"+attackid+"spellid"] != "") {
                 spellattack = true;
                 magicattackmod = parseInt(v.globalmagicmod, 10);
-                spelllevel = "{{spelllevel=" + v["repeating_attack_spellid"].split("_")[0].substr(1) + "}}";
+                spelllevel = "{{spelllevel=" + v["repeating_attack_"+attackid+"spellid"].split("_")[0].substr(1) + "}}";
             };
-            if(v["repeating_attack_"+attackid+"atkattr_base"] === "0") {atkattr_base = 0} else {atkattr_base = Math.floor((v[v["repeating_attack_"+attackid+"atkattr_base"].substring(0, v["repeating_attack_"+attackid+"atkattr_base"].length - 5).substr(2)] - 10) / 2 );};
-            if(v["repeating_attack_"+attackid+"dmgattr"] === "0") {dmgattr = 0} else {dmgattr = Math.floor((v[v["repeating_attack_"+attackid+"dmgattr"].substring(0, v["repeating_attack_"+attackid+"dmgattr"].length - 5).substr(2)] - 10) / 2 );};
+            if(v["repeating_attack_"+attackid+"atkattr_base"] === undefined || v["repeating_attack_"+attackid+"atkattr_base"] === "0") {atkattr_base = 0} else {atkattr_base = Math.floor((v[v["repeating_attack_"+attackid+"atkattr_base"].substring(0, v["repeating_attack_"+attackid+"atkattr_base"].length - 5).substr(2)] - 10) / 2 );};
+            if(v["repeating_attack_"+attackid+"dmgattr"] === undefined || v["repeating_attack_"+attackid+"dmgattr"] === "0") {dmgattr = 0} else {dmgattr = Math.floor((v[v["repeating_attack_"+attackid+"dmgattr"].substring(0, v["repeating_attack_"+attackid+"dmgattr"].length - 5).substr(2)] - 10) / 2 );};
             dmg2attr = 0;
             if(v["repeating_attack_"+attackid+"dmg2attr"] && v["repeating_attack_"+attackid+"dmg2attr"] !== "0") {dmg2attr = Math.floor((v[v["repeating_attack_"+attackid+"dmg2attr"].substring(0, v["repeating_attack_"+attackid+"dmg2attr"].length - 5).substr(2)] - 10) / 2 );};
             var dmgbase = v["repeating_attack_"+attackid+"dmgbase"] && v["repeating_attack_"+attackid+"dmgbase"] != "" ? v["repeating_attack_"+attackid+"dmgbase"] : 0;
@@ -6409,7 +6412,12 @@
                 if(spellattack === true && dmgbase.indexOf("@{level}") > -1) {
                     // SPECIAL CANTRIP DAMAGE
                     dmgdiestring = Math.round(((parseInt(v.level, 10) + 1) / 6) + 0.5).toString()
-                    dmg = dmgdiestring + dmgbase.substring(dmgbase.lastIndexOf("d")) + " " + dmgtype;
+                    var dmgdiekind = dmgbase.substring(dmgbase.lastIndexOf("d"))
+                    if(physical) {
+                        dmgdiekind = dmgdiekind.substring(0, dmgdiekind.lastIndexOf("}"))
+                        dmgbase = "?{" + dmgdiestring + dmgdiekind + " (dmg for level " + v.level +")}";
+                    }
+                    dmg = dmgdiestring + dmgdiekind + " " + dmgtype;
                 }
                 else {
                     if(dmgbase === 0 && (dmgattr + dmgmod === 0)){
@@ -6543,6 +6551,7 @@
     };
     
     var updateSpell = function(spellid, category, eventinfo, forceupdate) {
+        log("updateSpell(" + spellid + ", " + category + ", " + JSON.stringify(eventinfo) + ", " + forceupdate + ")");
         var sourcetype = eventinfo ? eventinfo.sourceType : "";
         var cat = category ? "-" + category : "";
         var repid = spellid ? spellid + "_" : "";
@@ -6552,7 +6561,9 @@
         if((eventinfo && eventinfo.sourceAttribute && eventinfo.sourceAttribute.split("_")[1] === "spell-npc") || (category && category === "npc")) {
             npcspell = true;
         } 
-        getAttrs(["npc_spellattackmod","level","npc_spelldc","repeating_spell" + cat + "_" + repid + "spellname_base","repeating_spell" + cat + "_" + repid + "spellprepared","repeating_spell" + cat + "_" + repid + "spellrange","repeating_spell" + cat + "_" + repid + "spelltarget","repeating_spell" + cat + "_" + repid + "spellattack","repeating_spell" + cat + "_" + repid + "spelldamage","repeating_spell" + cat + "_" + repid + "spelldamagetype","repeating_spell" + cat + "_" + repid + "spelldamage2","repeating_spell" + cat + "_" + repid + "spelldamagetype2","repeating_spell" + cat + "_" + repid + "spellhealing","repeating_spell" + cat + "_" + repid + "spelldmgmod","repeating_spell" + cat + "_" + repid + "spellsave","repeating_spell" + cat + "_" + repid + "spellsavesuccess","repeating_spell" + cat + "_" + repid + "spellhldie","repeating_spell" + cat + "_" + repid + "spellhldietype","repeating_spell" + cat + "_" + repid + "spellhlbonus","repeating_spell" + cat + "_" + repid + "spellattackid","character_id","repeating_spell" + cat + "_" + repid + "spelloutput","repeating_spell" + cat + "_" + repid + "spelllevel","spellcasting_ability","repeating_spell" + cat + "_" + repid + "spell_damage_progression"], function(v) {
+        getAttrs(["dicetype", "npc_spellattackmod","level","npc_spelldc","repeating_spell" + cat + "_" + repid + "spellname_base","repeating_spell" + cat + "_" + repid + "spellprepared","repeating_spell" + cat + "_" + repid + "spellrange","repeating_spell" + cat + "_" + repid + "spelltarget","repeating_spell" + cat + "_" + repid + "spellattack","repeating_spell" + cat + "_" + repid + "spelldamage","repeating_spell" + cat + "_" + repid + "spelldamagetype","repeating_spell" + cat + "_" + repid + "spelldamage2","repeating_spell" + cat + "_" + repid + "spelldamagetype2","repeating_spell" + cat + "_" + repid + "spellhealing","repeating_spell" + cat + "_" + repid + "spelldmgmod","repeating_spell" + cat + "_" + repid + "spellsave","repeating_spell" + cat + "_" + repid + "spellsavesuccess","repeating_spell" + cat + "_" + repid + "spellhldie","repeating_spell" + cat + "_" + repid + "spellhldietype","repeating_spell" + cat + "_" + repid + "spellhlbonus","repeating_spell" + cat + "_" + repid + "spellattackid","character_id","repeating_spell" + cat + "_" + repid + "spelloutput","repeating_spell" + cat + "_" + repid + "spelllevel","spellcasting_ability","repeating_spell" + cat + "_" + repid + "spell_damage_progression"], function(v) {
+            var physical = v.dicetype !== "1d20";
+            log("is physical? " + physical);
             update["repeating_spell" + cat + "_" + repid + "spellname"] = v["repeating_spell" + cat + "_" + repid + "spellname_base"] ? v["repeating_spell" + cat + "_" + repid + "spellname_base"] : "";
             update["repeating_spell" + cat + "_" + repid + "prep"] = v["repeating_spell" + cat + "_" + repid + "spellprepared"] ? v["repeating_spell" + cat + "_" + repid + "spellprepared"] : 1;
             update["repeating_spell" + cat + "_" + repid + "spellattackinfoflag"] = v["repeating_spell" + cat + "_" + repid + "spelloutput"] && v["repeating_spell" + cat + "_" + repid + "spelloutput"] === "ATTACK" ? "show" : "hide";
@@ -6573,7 +6584,8 @@
                         quietupdate["repeating_attack_" + atkid + "_atkflag"] = "{{attack=1}}";
                     }
                     if(v["repeating_spell" + cat + "_" + repid + "spelldamage"] && v["repeating_spell" + cat + "_" + repid + "spelldamage"] != "") {
-                        quietupdate["repeating_attack_" + atkid + "_dmgbase"] = v["repeating_spell" + cat + "_" + repid + "spelldamage"];
+                        var dmgbase = v["repeating_spell" + cat + "_" + repid + "spelldamage"]
+                        quietupdate["repeating_attack_" + atkid + "_dmgbase"] = dmgbase;
                         quietupdate["repeating_attack_" + atkid + "_dmgtype"] = v["repeating_spell" + cat + "_" + repid + "spelldamagetype"] ? v["repeating_spell" + cat + "_" + repid + "spelldamagetype"] : "";
                         quietupdate["repeating_attack_" + atkid + "_dmgflag"] = "{{damage=1}} {{dmg1flag=1}}";
                         if(v["repeating_spell" + cat + "_" + repid + "spelldmgmod"] && v["repeating_spell" + cat + "_" + repid + "spelldmgmod"] === "Yes") {
@@ -6589,8 +6601,9 @@
                         quietupdate["repeating_attack_" + atkid + "_dmgtype"] = "";
                     }
                     if(v["repeating_spell" + cat + "_" + repid + "spelldamage2"] && v["repeating_spell" + cat + "_" + repid + "spelldamage2"] != "") {
+                        var dmgbase2 = v["repeating_spell" + cat + "_" + repid + "spelldamage2"];
                         quietupdate["repeating_attack_" + atkid + "_dmg2flag"] = "{{damage=1}} {{dmg2flag=1}}";
-                        quietupdate["repeating_attack_" + atkid + "_dmg2base"] = v["repeating_spell" + cat + "_" + repid + "spelldamage2"];
+                        quietupdate["repeating_attack_" + atkid + "_dmg2base"] = dmgbase2;
                         quietupdate["repeating_attack_" + atkid + "_dmg2attr"] = "0";
                         quietupdate["repeating_attack_" + atkid + "_dmg2type"] = v["repeating_spell" + cat + "_" + repid + "spelldamagetype2"];
                     }
@@ -6618,7 +6631,11 @@
                         if(v["repeating_spell" + cat + "_" + repid + "spellhlbonus"] && v["repeating_spell" + cat + "_" + repid + "spellhlbonus"] != "") {
                             bonus = "+(" + v["repeating_spell" + cat + "_" + repid + "spellhlbonus"] + "*" + query + ")";
                         }
-                        quietupdate["repeating_attack_" + atkid + "_hldmg"] = "{{hldmg=[[(" + v["repeating_spell" + cat + "_" + repid + "spellhldie"] + "*" + query + ")" + v["repeating_spell" + cat + "_" + repid + "spellhldietype"] + bonus + "]]}}";
+                        var hldice = "(" + v["repeating_spell" + cat + "_" + repid + "spellhldie"] + "*" + query + ")" + v["repeating_spell" + cat + "_" + repid + "spellhldietype"];
+                        if(physical) {
+                            hldice = "?{" + parseInt(query, 10) * parseInt(v["repeating_spell" + cat + "_" + repid + "spellhldie"], 10) + v["repeating_spell" + cat + "_" + repid + "spellhldietype"] + "}+0d0"
+                        }
+                        quietupdate["repeating_attack_" + atkid + "_hldmg"] = "{{hldmg=[[" + hldice + bonus + "]]}}";
                     }
                     else {
                         quietupdate["repeating_attack_" + atkid + "_hldmg"] = "";
@@ -6626,7 +6643,9 @@
                     if(v["repeating_spell" + cat + "_" + repid + "spellhealing"] && v["repeating_spell" + cat + "_" + repid + "spellhealing"] != "") {
                         if(!v["repeating_spell" + cat + "_" + repid + "spelldamage"] || v["repeating_spell" + cat + "_" + repid + "spelldamage"] === "") {
                             quietupdate["repeating_attack_" + atkid + "_dmgflag"] = "{{damage=1}} {{dmg1flag=1}}";
-                            quietupdate["repeating_attack_" + atkid + "_dmgbase"] = v["repeating_spell" + cat + "_" + repid + "spellhealing"];
+                            var dmgbase = v["repeating_spell" + cat + "_" + repid + "spellhealing"]
+
+                            quietupdate["repeating_attack_" + atkid + "_dmgbase"] = dmgbase;
                             quietupdate["repeating_attack_" + atkid + "_dmgtype"] = "Healing";
                             if(v["repeating_spell" + cat + "_" + repid + "spelldmgmod"] && v["repeating_spell" + cat + "_" + repid + "spelldmgmod"] === "Yes") {
                                 quietupdate["repeating_attack_" + atkid + "_dmgattr"] = v.spellcasting_ability.slice(0, -1);
@@ -6636,8 +6655,10 @@
                             }
                         } 
                         else if(!v["repeating_spell" + cat + "_" + repid + "spelldamage2"] || v["repeating_spell" + cat + "_" + repid + "spelldamage2"] === "") {
+                            var dmgbase2 = v["repeating_spell" + cat + "_" + repid + "spellhealing"];
+
                             quietupdate["repeating_attack_" + atkid + "_dmg2flag"] = "{{damage=1}} {{dmg2flag=1}}";
-                            quietupdate["repeating_attack_" + atkid + "_dmg2base"] = v["repeating_spell" + cat + "_" + repid + "spellhealing"];
+                            quietupdate["repeating_attack_" + atkid + "_dmg2base"] = dmgbase2;
                             quietupdate["repeating_attack_" + atkid + "_dmg2type"] = "Healing";
                             if(v["repeating_spell" + cat + "_" + repid + "spelldmgmod"] && v["repeating_spell" + cat + "_" + repid + "spelldmgmod"] === "Yes") {
                                 quietupdate["repeating_attack_" + atkid + "_dmg2attr"] = v.spellcasting_ability.slice(0, -1);
@@ -6657,8 +6678,11 @@
                     }
                 }
             }
+            log("quiteAttrs = " + JSON.stringify(quietupdate));
             setAttrs(quietupdate, {silent: true});
+            log("updateAttrs = " + JSON.stringify(update));
             setAttrs(update);
+            log("done!");
         });
     };
     
@@ -7717,4 +7741,3 @@
     };
     
 </script>
-
